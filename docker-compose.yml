@@ -5,6 +5,8 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    networks: 
+      - dotnet-kafka-network
 
   kafka:
     image: confluentinc/cp-kafka:latest
@@ -19,3 +21,35 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks: 
+      - dotnet-kafka-network
+
+  producer:
+    build: 
+      context: .
+      dockerfile: ./src/DotNetKafka.Producer/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      KafkaServer: "kafka:29092"
+    ports:
+      - "5001:80"
+    depends_on:
+      - kafka
+    networks: 
+      - dotnet-kafka-network
+
+  consumer:
+    build: 
+      context: .
+      dockerfile: ./src/DotNetKafka.Consumer/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      KafkaServer: "kafka:29092"
+    depends_on:
+      - kafka
+    networks: 
+      - dotnet-kafka-network
+
+networks: 
+  dotnet-kafka-network:
+    driver: bridge

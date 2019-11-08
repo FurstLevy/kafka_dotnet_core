@@ -1,4 +1,5 @@
 using Confluent.Kafka;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -13,7 +14,7 @@ namespace DotNetKafka.Consumer
         private readonly IConsumer<Ignore, string> _consumer;
         private readonly CancellationTokenSource _cancellationTokenSource;
 
-        public Worker(ILogger<Worker> logger)
+        public Worker(ILogger<Worker> logger, IConfiguration configuration)
         {
             _logger = logger;
             _cancellationTokenSource = new CancellationTokenSource();
@@ -21,13 +22,19 @@ namespace DotNetKafka.Consumer
             var conf = new ConsumerConfig
             {
                 GroupId = "hello-world-consumer",
-                BootstrapServers = "localhost:9092",
+                BootstrapServers = configuration.GetSection("KafkaServer").Value,
                 AutoOffsetReset = AutoOffsetReset.Earliest,
-                //EnableAutoCommit = false
+                EnableAutoCommit = false
             };
 
             _consumer = new ConsumerBuilder<Ignore, string>(conf).Build();
             _consumer.Subscribe("hello-world-topic3");
+        }
+
+        public override Task StartAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Iniciando serviço...");
+            return base.StartAsync(cancellationToken);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -38,23 +45,25 @@ namespace DotNetKafka.Consumer
                 _cancellationTokenSource.Cancel();
             };
 
-            try
+            while (!_cancellationTokenSource.Token.IsCancellationRequested)
             {
-                while (!_cancellationTokenSource.Token.IsCancellationRequested)
+                try
                 {
-                    _logger.LogInformation("Consumindo mensagens...");
+                    _logger.LogInformation("Consumindo novas mensagens...");
                     var consumeResult = _consumer.Consume(_cancellationTokenSource.Token);
+
+                    _consumer.Commit();
                     _logger.LogInformation(
                         $"Consumed message '{consumeResult.Value}' at: '{consumeResult.TopicPartitionOffset}'.");
                 }
-            }
-            catch (ConsumeException e)
-            {
-                _logger.LogError($"Error occured: {e.Error.Reason}");
-            }
-            catch (OperationCanceledException)
-            {
-                _consumer.Close();
+                catch (ConsumeException e)
+                {
+                    _logger.LogError($"Error occured: {e.Error.Reason}");
+                }
+                catch (OperationCanceledException)
+                {
+                    _consumer.Close();
+                }
             }
         }
     }
