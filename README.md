@@ -23,6 +23,9 @@ Esse projeto é uma PoC com uma API servindo como producer em um tópico do Kafk
 docker-compose up
 ```
 
+- [Acessar o swagger](http://localhost:5001/index.html) e fazer o post com o payload
+- Acompanhar os logs do consumer.
+
 ## Para desenvolver
 
 - Subir um compose apenas com as imagens do kafka e zookeeper. No launchSettings já contém as variáveis de ambiente necessárias.
